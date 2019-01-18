@@ -105,7 +105,13 @@ def popuniSusjede1(lista):
       lista[c].susjedi.append(c+brojStupaca)
       lista[c].susjedi.append(c-brojStupaca)
 
-
+def randomN(redak,stupac):
+  svi=[]
+  x = (stupac-1)*[0] + list(range(redak)) + (stupac-1)*[redak-1] + list(range(redak-1))[:0:-1]
+  y = list(range(stupac)) + (redak-1)*[stupac-1] + list(range(stupac-1))[:0:-1] + (redak-1)*[0]
+  for i,j in zip(x,y):
+      svi.append(i*stupac + j)
+  return svi
 ##########################
            
 red=queue.Queue()
@@ -116,7 +122,8 @@ popuniSusjede1(listaCelija1)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++#
 #1
-#random n
+n = random.choice(randomN(brojRedaka,brojStupaca))
+print(n);
 
 while(1):
   #3
