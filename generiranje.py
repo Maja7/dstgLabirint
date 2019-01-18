@@ -2,8 +2,8 @@ import random
 import queue
 
 #postavke (minimalno 3 x 3)
-brojRedaka=5
-brojStupaca=5
+brojRedaka=6
+brojStupaca=6
 #*******
 
 class Celija:
@@ -83,7 +83,7 @@ def popuniSusjede1(lista):
     elif(c==brojRedaka*brojStupaca-1):
       lista[c].susjedi.append(c-brojStupaca)
       lista[c].susjedi.append(c-1)
-    elif(c in range (1,brojStupaca)):
+    elif(c in range (1,brojStupaca-1)):
       lista[c].susjedi.append(c+1)
       lista[c].susjedi.append(c-1)
       lista[c].susjedi.append(c+brojStupaca)
@@ -116,7 +116,7 @@ popuniSusjede1(listaCelija1)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++#
 #1
-n=random.randint(0,brojRedaka*brojStupaca)
+#random n
 
 while(1):
   #3
@@ -130,14 +130,16 @@ while(1):
     if(listaCelija1[el].posjeceno==False):
       neposjeceniSusjediCelije.append(el)
   if(len(neposjeceniSusjediCelije)==0):
+    
     while(red.empty()==False):
       celija=red.get()
-      br=celija.broj
-      for elem in listaCelija1[br].susjedi:
+      n=celija.broj
+      for elem in listaCelija1[n].susjedi:
         if(listaCelija1[elem].posjeceno==False):
           neposjeceniSusjediCelije.append(elem)
       if(len(neposjeceniSusjediCelije)!=0):
         break
+  
   if(len(neposjeceniSusjediCelije)==0):
     break
   a=random.choice(neposjeceniSusjediCelije)
@@ -151,10 +153,15 @@ while(1):
 
   #7 petlja
 #+++++++++++++++++++++++++++++++++++++++++++++++#
-
+nikola = {}
 for item in listaCelija1:
+  nikola[item.koordinate] = item.s
   print(str(item.koordinate) + "*" + str(item.s))
+print(nikola)
 
+
+#for i in range(0,len(listaCelija1)):
+ # print(listaCelija1[i].susjedi)  
 
 
 
