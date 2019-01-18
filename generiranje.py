@@ -2,8 +2,8 @@ import random
 import queue
 
 #postavke (minimalno 3 x 3)
-brojRedaka=6
-brojStupaca=6
+brojRedaka=5
+brojStupaca=5
 #*******
 
 class Celija:
@@ -111,7 +111,7 @@ def randomN(redak,stupac):
   y = list(range(stupac)) + (redak-1)*[stupac-1] + list(range(stupac-1))[:0:-1] + (redak-1)*[0]
   for i,j in zip(x,y):
       svi.append(i*stupac + j)
-  return svi
+  return random.choice(svi)
 ##########################
            
 red=queue.Queue()
@@ -122,7 +122,7 @@ popuniSusjede1(listaCelija1)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++#
 #1
-n = random.choice(randomN(brojRedaka,brojStupaca))
+n = randomN(brojRedaka,brojStupaca)
 print(n);
 
 while(1):
@@ -160,12 +160,12 @@ while(1):
 
   #7 petlja
 #+++++++++++++++++++++++++++++++++++++++++++++++#
+
 nikola = {}
 for item in listaCelija1:
   nikola[item.koordinate] = item.s
   print(str(item.koordinate) + "*" + str(item.s))
 print(nikola)
-
 
 #for i in range(0,len(listaCelija1)):
  # print(listaCelija1[i].susjedi)  
