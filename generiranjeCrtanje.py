@@ -136,11 +136,24 @@ def vratiKrajeve(lista):
             krajevi.append(celija.koordinate)
     return krajevi
 
+def vratiRubne(redak,stupac):
+  svi=[]
+  rubni=[]
+  x = (stupac-1)*[0] + list(range(redak)) + (stupac-1)*[redak-1] + list(range(redak-1))[:0:-1]
+  y = list(range(stupac)) + (redak-1)*[stupac-1] + list(range(stupac-1))[:0:-1] + (redak-1)*[0]
+  for i,j in zip(x,y):
+      svi.append(i*stupac + j)
+  for r in svi:
+    rubni.append(listaCelija1[r])
+  return rubni    
+
 krajevi=vratiKrajeve(listaCelija1)
+krajeviNaRubu=vratiKrajeve(vratiRubne(brojRedaka,brojStupaca))
 
 
 print(korijen)
 print(krajevi)
+print(krajeviNaRubu)
 
 nikola = {}
 for item in listaCelija1:
