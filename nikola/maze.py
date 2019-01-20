@@ -291,21 +291,22 @@ def generate_maze(brojRedaka, brojStupaca, maze_name, open_in='browser'):
 
     krajevi=vratiKrajeve(listaCelija1)
     krajeviNaRubu=vratiKrajeve(vratiRubne(brojRedaka,brojStupaca))
-
+    
     koord = {}
     for item in listaCelija1:
         koord[item.koordinate] = item.s
 
     #crtanje grafa#
-
+    
+    listaCelija1.sort(key = lambda item: item.razina)
     g = Graph(format='png')
     
-    for k in koord.keys():
-        g.node(str(k[0]*brojStupaca+k[1]), str(k))
+    for node in listaCelija1:
+        g.node(str(node.koordinate[0]*brojStupaca+node.koordinate[1]), str(node.koordinate))
         
-    for k in koord.keys():
-        for i in koord[k]:
-            g.edge(str(k[0]*brojStupaca+k[1]), str(i[0]*brojStupaca+i[1]))
+    for node in listaCelija1:
+        for i in koord[node.koordinate]:
+            g.edge(str(node.koordinate[0]*brojStupaca+node.koordinate[1]), str(i[0]*brojStupaca+i[1]))
             
     print ("\nThis may take a while ...")
     save_name = f"maze/temp/{maze_name}"
