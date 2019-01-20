@@ -7,9 +7,65 @@ from tqdm import tqdm
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
+from graphviz import Graph
 from PIL import Image
 import webbrowser
 
+"""
+Priprema modula za korištenje
+
+Prilikom importa modula 'maze', poziva se ova metoda, koja kreira folder 'maze', a unutar njega podfoldere:
+    'maze_parts' - folder koji sadrži potrebne sličice za generiranje slike labirinta (slike se odmah preuzimaju sa sljedeće lokacije:
+                    'https://github.com/alen-kl/dstgLabirint/blob/master/maze_images/{naziv_slike}?raw=true')
+    'mazes_txt' - folder koji sadrži tekstualnu reprezentaciju generiranog labirinta; način obilježavanja dan je sljedećom tablicom:
+                  simbol predstavlja manju sličicu koja se umeće na odgovovarajuće mjesto u slici prilikom generiranja labirinta, npr.
+                  slovo f - simbol predstavlja da taj element slike labirinta ima zidove na lijevoj i gornjoj strani
+                  
+                  slovo | simbol
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  a     | prazno
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  b     | |
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  c     | ¯
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  d     |  |
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  e     | _
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  f     | |¯
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  g     | ¯|
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  h     | _|
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  i     | |_
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  j     | | |
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  k     | =
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  l     | |¯|
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  m     | =|
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  n     | |_|
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  o     | |=
+                  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                  p     | |=|
+                  
+                  Modul omogućuje i kreiranje nove ili izmjene postojeće datoteke, odnosno umjesto generianja, čitanje iz datoteke, gdje se
+                  mogu priložiti vlastiti 'labirinti'
+    'temp' - folder u koji se pohranjuju sve generirane slike labirinta, njegovog rješenja i stabla s obzirom na početak
+    
+
+Parameters
+----------
+
+Returns
+-------
+"""
 def _prepare_module():
     print ("Creating necessary folders ...")
     _createFolder('maze/maze_parts')
@@ -20,10 +76,22 @@ def _prepare_module():
     print ("Downloading required images ...")
     for i in tqdm(range(len(names))):
         if not os.path.exists(f'maze/maze_parts/{names[i]}'):
-            urllib.request.urlretrieve(f'https://github.com/alen-kl/dstgLabirint/blob/master/nikola/maze_parts/{names[i]}?raw=true',
+            urllib.request.urlretrieve(f'https://github.com/alen-kl/dstgLabirint/blob/master/maze_images/{names[i]}?raw=true',
                                        f'maze/maze_parts/{names[i]}')
     print ("Finished downloading images!")
 
+"""
+Kreiranje novog foldera na temelju trenutne lokacije učitavanja modula
+
+
+Parameters
+----------
+name
+    novo ime foldera
+
+Returns
+-------
+"""
 def _createFolder(name):
     path = os.path.join(os.getcwd(), name)
     try:
@@ -32,6 +100,56 @@ def _createFolder(name):
     except OSError:
         print ('Error: Creating directory. ' +  name)
 
+"""
+Brisanje svih datoteka koje završavaju sa zadanom ekstenzijom na temelju trenutne lokacije učitavanja modula
+
+
+Parameters
+----------
+path
+    folder trenutne lokacije učitavanja modula
+ext
+    ciljana ekstenzija
+    
+Returns
+-------
+"""
+def _deleteFiles(path, ext):
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if file.endswith('.' + ext):
+                os.remove(os.path.join(root, file))
+        
+"""
+Generiranje novog labirinta
+
+Ova funkcija koristi interne strukture i funkcije (detaljnije objašnjeno u samoj razradi teme) za generiranje novog labirinta. 
+
+
+Parameters
+----------
+brojRedaka
+    broj redova novog labirinta
+brojStupaca
+    broj stupaca novog labirinta
+maze_name
+    ime novog labirinta, koje će biti iskorišteno prilikom geneiranja teksutalne reprezentacije labirinta i stabla
+open_in
+    ukoliko je vrijednost 'browser', slika stabla biti će prikazana u odgovarajućem programu nakon što se završi njeno generiranje
+    (kod velikih labirinata to može potrajati do nekoliko minuta)
+  
+Returns
+-------
+koord
+    koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost lista tupleova
+    koordinata susjeda ključa
+maze
+    2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+(n1, n2, n3)
+    n1 - uređeni par koji predstavlja koordinate početka, odnosno ulaza u labirint
+    n2 - uređeni par koji predstavlja koordinate kraja, no ne i nužno izlaza iz labirinta, već može kraj biti i negdje unutra
+    n3 - uređeni par koji predstavlja koordinate kraja, odnosno izlaza iz labirinta (obavezno uz rub)
+"""        
 def generate_maze(brojRedaka, brojStupaca, maze_name, open_in='browser'):
     class Celija:
         def __init__(self, x, y, posjeceno):
@@ -180,84 +298,98 @@ def generate_maze(brojRedaka, brojStupaca, maze_name, open_in='browser'):
 
     #crtanje grafa#
 
-    graf=[]
-    for c in listaCelija1:
-        for d in c.children:
-            graf.append((c.koordinate,d))
-
-
-
-    def _hierarchy_pos(G, root, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5, pos = None, parent = None):
-        '''
-        see hierarchy_pos docstring for most arguments
-        pos: a dict saying where all nodes go if they have been assigned
-        parent: parent of this branch. - only affects it if non-directed
-        '''
-
-        if pos is None:
-            pos = {root:(xcenter,vert_loc)}
-        else:
-            pos[root] = (xcenter, vert_loc)
-        children = list(G.neighbors(root))
-        if not isinstance(G, nx.DiGraph) and parent is not None:
-            children.remove(parent)  
-        if len(children)!=0:
-            dx = width/len(children) 
-            nextx = xcenter - width/2 - dx/2
-            for child in children:
-                nextx += dx
-                pos = _hierarchy_pos(G,child, width = dx, vert_gap = vert_gap, 
-                                    vert_loc = vert_loc-vert_gap, xcenter=nextx, pos=pos, 
-                                    parent = root)
-        return pos
-
-    def hierarchy_pos(G, root=None, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5):
-
-        '''
-        If the graph is a tree this will return the positions to plot this in a 
-        hierarchical layout.
-        G: the graph (must be a tree)
-        root: the root node of current branch 
-        - if the tree is directed and this is not given, the root will be found and used
-        - if the tree is directed and this is given, then the positions will be just for the descendants of this node.
-        - if the tree is undirected and not given, then a random choice will be used.
-        width: horizontal space allocated for this branch - avoids overlap with other branches
-        vert_gap: gap between levels of hierarchy
-        vert_loc: vertical location of root
-        xcenter: horizontal location of root
-        '''
-        if not nx.is_tree(G):
-            raise TypeError('cannot use hierarchy_pos on a graph that is not a tree')
-
-        if root is None:
-            if isinstance(G, nx.DiGraph):
-                root = next(iter(nx.topological_sort(G)))
-            else:
-                root = random.choice(list(G.nodes))
-
-        return _hierarchy_pos(G, root, width, vert_gap, vert_loc, xcenter)
-
-    G=nx.Graph()
-
-    G.add_edges_from(graf)
-    pos=hierarchy_pos(G,korijen)
-    nx.draw(G, pos=pos, with_labels=True, node_size=2000)
-    save_name = f"maze/temp/{maze_name}.png"
-    plt.savefig(save_name)
+    g = Graph(format='png')
+    
+    for k in koord.keys():
+        g.node(str(k[0]*brojStupaca+k[1]), str(k))
+        
+    for k in koord.keys():
+        for i in koord[k]:
+            g.edge(str(k[0]*brojStupaca+k[1]), str(i[0]*brojStupaca+i[1]))
+            
+    print ("\nThis may take a while ...")
+    save_name = f"maze/temp/{maze_name}"
     if open_in == 'browser':
-        webbrowser.open('file://' + os.getcwd() + '/' + save_name)
+        g.render(save_name + '_stablo.gv', view=True)
+    else:
+        g.render(save_name + '_stablo.gv')
+    
+    print ("\nFinally done!")
     maze = _get_letters(koord, brojRedaka, brojStupaca)
     _save_maze(maze, maze_name)
+    _deleteFiles(os.getcwd(), 'gv')
     return koord, maze, (korijen, krajevi.pop(), krajeviNaRubu.pop())
 
+"""
+Učitavanje labirinta iz njegove tekstualne reprezentacije iz 'maze/mazes_txt' foldera
+
+
+Parameters
+----------
+maze_name
+    ime datoteke željenog labirinta
+
+Returns
+-------
+maze
+    2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+"""
 def read_maze(maze_name):
     return [[i for i in line.rstrip('\n')] for line in open(f'maze/mazes_txt/{maze_name}.txt')]
-    
+
+"""
+Pohranjivanje labirinta u njegovu tekstualnu reprezentacije u 'maze/mazes_txt' folder
+
+
+Parameters
+----------
+maze
+    2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+maze_name
+    ime datoteke željenog labirinta
+
+Returns
+-------
+"""
 def _save_maze(maze, maze_name):
     with open(f'maze/mazes_txt/{maze_name}.txt', 'w') as file:
         for row in maze:
             file.write(''.join(row) + '\n')
-            
+
+"""
+Generiranje 2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje) iz
+koordinata (koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost lista
+tupleova koordinata susjeda ključa)
+
+    Prilikom generiranja slova, iz perspektive samog elementa, korištene su sljedeće oznake:
+
+    strana | oznaka
+    ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    lijevo | W(est)
+    ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    gore   | N(orth)
+    ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    desno  | E(ast)
+    ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+    dolje  | S(outh)
+    
+    Ove oznake će se pojavljivati i kasnije kroz implementaciju, pa se korisnik može ovdje referencirati 
+    
+Parameters
+----------
+koordinate
+    koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost lista
+    tupleova koordinata susjeda ključa
+redak
+    broj redaka labirinta
+stupac
+    broj stupaca labirinta
+    
+Returns
+-------
+maze
+    2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+"""
 def _get_letters(koordinate, redak, stupac):
     maze = [['' for j in range(stupac)] for i in range(redak)]
     for key, value in koordinate.items():
@@ -305,7 +437,22 @@ def _get_letters(koordinate, redak, stupac):
         elif sides == 'NESW':
             maze[x][y] = 'p'
     return maze
-    
+
+"""
+Pretraživanje i odabir (po potrebi rotacija) potrebne slike za potrebe generiranja slike labirinta iz 'maze/maze_parts' foldera
+
+Parameters
+----------
+images
+    lista objekata klase Image iz PIL-a - potrebne slike
+y
+    slovo za element
+
+Returns
+-------
+image
+    potrebna (modificirana) slika
+"""
 def _find_image(images, y):
     if y == 'a':
         return images[0]
@@ -340,6 +487,40 @@ def _find_image(images, y):
     elif y == 'p':
         return images[5]
 
+"""
+Kreiranje slike labirinta iz 2d polja, čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+
+Funkcija kreira i druge moguće reprezentacije pohrane stabla, odnosno grafa iz tog 2d polja.
+Nakon što završi s kreiranjem slike, pohranjena slika se prikazuje u odgovarajućem programu za pregled.
+
+Parameters
+----------
+maze
+    2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+row
+    broj redaka labirinta
+column
+    broj stupaca labirinta
+maze_name
+    ime labirinta koje će se iskoristiti za ime slike labirinta
+open_in
+    ukoliko je vrijednost 'browser', slika stabla biti će prikazana u odgovarajućem programu nakon što se završi njeno generiranje
+    (kod velikih labirinata to može potrajati do nekoliko minuta)
+    
+Returns
+-------
+image
+    nova slika koja je objekt klase Image iz PIL-a
+koordinate
+    koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost lista tupleova
+    koordinata susjeda ključa
+susjed
+    matrica susjedstva stabla u obliku 2d polja s vrijednostima 0 ili 1
+matrix
+    2d polje koje za element sadrži rječnik s ključevima 'W', 'N', 'E' i 'S' (prethodno objašnjeno kod generiranja 2d polja slova),
+    a za vrijednost imaju ili 0, ako s te odgovorajuće strane nemaju susjeda, odnosno sam element iz tog polja, ako na toj stani imaju
+    susjeda
+"""    
 def create_maze(maze, row, column, maze_name, open_in='browser'):
     koordinate = {}
     open_images = []
@@ -504,32 +685,121 @@ def create_maze(maze, row, column, maze_name, open_in='browser'):
         webbrowser.open('file://' + os.getcwd() + '/' + save_name)
     return blank_image, koordinate, susjed, matrix
 
-def _dfs_paths(graph, start, goal):
-    stack = [(start, [start])]
-    while stack:
-        (vertex, path) = stack.pop()
-        for next in [x for x in graph[vertex] if x not in path]:
-            if next == goal:
-                yield path + [next]
-            else:
-                stack.append((next, path + [next]))
+"""
+Modificirani DFS algoritam za pretraživanje svih mogućih putova između dva vrha grafa
 
-def _bfs_paths(graph, start, goal):
-    queue = [(start, [start])]
-    while queue:
-        (vertex, path) = queue.pop(0)
-        for next in [x for x in graph[vertex] if x not in path]:
-            if next == goal:
-                yield path + [next]
-            else:
-                queue.append((next, path + [next]))
+Algoritam se temelji na DFS algoritmu, ali je proširen da na temelju strukture podataka grafa (koordinate susjedstva novog labirinta,
+odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost lista tupleova koordinata susjeda ključa) određuje sve
+moguće putove između zadanog početka i cilja (naravno, da će u ovom slučaju algoritam uvijek vratiti samo jedan put, jer u stablu između
+svaka dva vrha postoji jedinstven put). Algoritam je napisan u obliku generatora koji vraća moguće putove. Algoritam je detaljnije opisan
+u samoj izradi.
 
+Parameters
+----------
+graf
+    koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost
+    lista tupleova koordinata susjeda ključa
+pocetak
+    uređen par koji je koordinata početka traženja (kod labirinta ulaz)
+kraj
+    uređen par koji je koordinata kraja traženja (kod labirinta izlaz)
+    
+Returns
+-------
+put
+    lista uređenih parova koji su koordinate traženog puta između 'pocetak' i 'kraj'
+"""
+def _dfs_paths(graf, pocetak, kraj):
+    stog = [(pocetak, [pocetak])]
+    while stog:
+        (vrh, put) = stog.pop()
+        for sljed in [x for x in graf[vrh] if x not in put]:
+            if sljed == kraj:
+                yield put + [sljed]
+            else:
+                stog.append((sljed, put + [sljed]))
+
+"""
+Modificirani BFS algoritam za pretraživanje svih mogućih putova između dva vrha grafa
+
+Algoritam se temelji na BFS algoritmu, ali je proširen da na temelju strukture podataka grafa (koordinate susjedstva novog labirinta,
+odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost lista tupleova koordinata susjeda ključa) određuje sve
+moguće putove između zadanog početka i cilja (naravno, da će u ovom slučaju algoritam uvijek vratiti samo jedan put, jer u stablu između
+svaka dva vrha postoji jedinstven put). Algoritam je napisan u obliku generatora koji vraća moguće putove. Algoritam je detaljnije opisan
+u samoj izradi.
+
+Parameters
+----------
+graf
+    koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost
+    lista tupleova koordinata susjeda ključa
+pocetak
+    uređen par koji je koordinata početka traženja (kod labirinta ulaz)
+kraj
+    uređen par koji je koordinata kraja traženja (kod labirinta izlaz)
+    
+Returns
+-------
+put
+    lista uređenih parova koji su koordinate traženog puta između 'pocetak' i 'kraj'
+"""                
+def _bfs_paths(graf, pocetak, kraj):
+    red = [(pocetak, [pocetak])]
+    while red:
+        (vrh, put) = red.pop(0)
+        for sljed in [x for x in graf[vrh] if x not in put]:
+            if sljed == kraj:
+                yield put + [sljed]
+            else:
+                red.append((sljed, put + [sljed]))
+
+"""
+Funkcija koja obuhvaća pozive prethodnih metoda '_dfs_paths' i '_bfs_paths' te vraća jednu lista uređenih parova, koji su koordinate
+traženog puta (ako ih ima više, vraća najdulji od puteva)
+
+Parameters
+----------
+koordinate
+    koordinate susjedstva novog labirinta, odnosno stabla - rječnik čiji je ključ tuple koordinata vrha, a vrijednost
+    lista tupleova koordinata susjeda ključa
+start
+    uređen par koji je koordinata početka traženja (kod labirinta ulaz)
+goal
+    uređen par koji je koordinata kraja traženja (kod labirinta izlaz)
+alg
+    oznaka kojom se određuje algoritam rješavanja:
+        -'dfs': koristi se funkcija '_dfs_paths'
+        -'bfs': koristi se funkcija '_bfs_paths'
+        
+Returns
+-------
+put
+    lista uređenih parova koji su koordinate traženog puta između 'start' i 'goal'
+"""
 def get_solution(koordinate, start, goal, alg='dfs'):
     if alg == 'dfs':
         return max(list(_dfs_paths(koordinate, start, goal)), key=len)
     elif alg == 'bfs':
         return max(list(_bfs_paths(koordinate, start, goal)), key=len)
-        
+
+"""
+Funkcija koja na temelju liste vrijednosti (svaki je element određen koordinatama na sljedeći način: (x,y) -> x*brojStuapca+y), koja
+predstavlja traženi put koji je rješenje algoritma određuje odgovarajuću strukturu podataka, kako bi se labirint mogao riješiti
+
+Tražena struktura je oblika rječnika, koji za ključ ima vrijednost elementa (kako je prethodno opisano), a za vrijednost string duljine
+2 slova (npr. 'WE', što znači da trag rješenja [plava linija na slici rješenog labirinta] se u danom elementu kreće od lijeva nadesno)
+
+Parameters
+----------
+solution_maze1
+    lista uređenih parova koji su koordinate traženog puta između ulaza i izlaza labirinta
+
+Returns
+-------
+orijentacija
+    struktura oblika rječnika, koji za ključ ima vrijednost elementa (kako je prethodno opisano), a za vrijednost string duljine
+    2 slova (npr. 'WE', što znači da trag rješenja [plava linija na slici rješenog labirinta] se u danom elementu kreće od lijeva nadesno)
+"""
 def _get_orijent(solution_maze1):
     orijentacija = {}
     beg = ''
@@ -570,6 +840,29 @@ def _get_orijent(solution_maze1):
         orijentacija[solution_maze1[-1]] = 'WE'
     return orijentacija
 
+"""
+Funkcija koja na odabarnu sliku elementa labirinta (ovisno o slovu) dodaje trag rješenja [plava linija na slici rješenog labirinta],
+ovisno o orijentaciji za dotični element
+
+Parameters
+----------
+image
+    slika koja je objekt klase Image iz PIL-a
+orijent
+    string duljine 2 znaka, koji predstavlja orijentaciju dotičnog elementa (kako je prethodno opisano)
+size
+   uređeni par koji predstavlja dimenziju slike image: (width, height)
+path:
+    uređena trojka objekata klase Image iz PIL-a, koji predatavljaju redom slike:
+        -horizontalna plava linija za prikaz rješenja labirinta
+        -vertikalna plava linija za prikaz rješenja labirinta
+        -plavi kut za prikaz rješenja labirinta
+        
+Returns
+-------
+pom_img
+    nova slika koja je objekt klase Image iz PIL-a s dodanim tragom rješenja za dotični element labirinta
+"""
 def _get_image(image, orijent, size, path):
     r_h, r_v, k = path
     pom_img = Image.new("RGB", size)
@@ -587,7 +880,35 @@ def _get_image(image, orijent, size, path):
     elif orijent == 'NE' or orijent == 'EN':
         pom_img.paste(k.rotate(270), (31, 5))
     return pom_img
+
+"""
+Kreiranje slike rješenja labirinta iz 2d polja, čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula
+za korištenje) i odgovarajućeg rješenja (lista uređenih parova koji su koordinate traženog puta između ulaza i izlaza labirinta)
+
+Funkcija prikazuje rješenje u obliku plave linije na već postojećoj slici labirinta.
+Nakon što završi s kreiranjem slike, pohranjena slika se prikazuje u odgovarajućem programu za pregled.
+
+Parameters
+----------
+maze
+    2d polje čiji je element odgovarajuće slovo (objašnjeno kod funkcije za pripremu modula za korištenje)
+row
+    broj redaka labirinta
+column
+    broj stupaca labirinta
+maze_name
+    ime labirinta koje će se iskoristiti za ime slike labirinta
+ends
+    uređen par uređenih parova koji predstavljaju koordinate početka i kraja labirinta
+open_in
+    ukoliko je vrijednost 'browser', slika stabla biti će prikazana u odgovarajućem programu nakon što se završi njeno generiranje
+    (kod velikih labirinata to može potrajati do nekoliko minuta)
     
+Returns
+-------
+image
+    nova slika koja je objekt klase Image iz PIL-a
+"""    
 def solve_maze(maze, row, column, solution_maze, maze_name, ends, open_in = 'browser'):
     solution_maze1 = [i*column+j for i,j in solution_maze]
     orijentacija = _get_orijent(solution_maze1)
@@ -737,6 +1058,29 @@ def solve_maze(maze, row, column, solution_maze, maze_name, ends, open_in = 'bro
         webbrowser.open('file://' + os.getcwd() + '/' + save_name)
     return blank_image
 
+"""
+Označavanje početka i kraja na slici labirinta odgovarajućim oznakama
+
+Funkcija na slici labirinta označava ulaz i izlaz iz labirinta sljedećim oznakama:
+    -ulaz: žuti kvadratić u sredini odgovarajućeg elementa slike
+    -izlaz: zeleni kvadratić u sredini odgovarajućeg elementa slike
+    
+Nakon što završi s kreiranjem slike, pohranjena slika se prikazuje u odgovarajućem programu za pregled.
+
+Parameters
+----------
+beg
+    uređen par koji je koordinata početka traženja (kod labirinta ulaz)
+end
+    uređen par koji je koordinata kraja traženja (kod labirinta izlaz)
+image
+    slika koja je objekt klase Image iz PIL-a
+    
+Returns
+-------
+image
+    nova slika koja je objekt klase Image iz PIL-a
+"""    
 def label_ends(beg, end, image):
     image_h = Image.open('maze/maze_parts/1.png')
     width, height = image_h.size
@@ -749,9 +1093,39 @@ def label_ends(beg, end, image):
     end_img.close()
     return image
 
+"""
+Kopiranje postojeće slike
+
+Parameters
+----------
+image
+    slika objekta klase Image iz PIL-a za koju želimo kreirati objekt kopiju (deep copy)
+    
+Returns
+-------
+image
+    nova slika koja je objekt klase Image iz PIL-a
+"""    
 def copy_image(image):
     return image.copy()
 
+"""
+Pohrana postojeće slike
+
+Parameters
+----------
+image
+    slika objekta klase Image iz PIL-a koju želimo pohraniti
+name
+    naziv slike pod kojim je želimo pohraniti
+open_in
+    ukoliko je vrijednost 'browser', slika stabla biti će prikazana u odgovarajućem programu nakon što se završi njeno pohranjivanje
+    
+Returns
+-------
+image
+    ista slika objekta klase Image iz PIL-a koju želimo pohraniti
+"""    
 def save_image(image, name, open_in=''):
     save_name = f'maze/temp/{time.strftime("%Y%m%d_%H%M%S")}_{name}.jpg'
     image.save(save_name)
